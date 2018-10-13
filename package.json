@@ -1,0 +1,14 @@
+{
+  "name": "instabot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "test": "start"
+  },
+  "author": "evmarts",
+  "license": "ISC",
+  "dependencies": {
+    "bluebird": "^3.5.2"
+  }
+}
