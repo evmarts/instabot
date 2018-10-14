@@ -9,6 +9,8 @@
   "author": "evmarts",
   "license": "ISC",
   "dependencies": {
-    "bluebird": "^3.5.2"
+    "bluebird": "^3.5.2",
+    "knex": "^0.15.2",
+    "pg": "^7.5.0"
   }
 }

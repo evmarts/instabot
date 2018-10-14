@@ -3,13 +3,22 @@ var Client = require("instagram-private-api").V1;
 var device = new Client.Device(USER_CREDS.acc1.username);
 var storage = new Client.CookieFileStorage(__dirname + "/cookies/cookies.json");
 const Promise = require("bluebird");
+const knex = require("./database");
 
 main = async () => {
+  const qres = await knex.select().from("users");
   const session = await getSesh();
   let yourRecentMedia = await getRecentMedia(
     session,
-    USER_CREDS.acc1.accoundID
+    USER_CREDS.acc1.accountID
   );
+
+  const followers = await getYourFollowers(session, USER_CREDS.acc1.accountID);
+  let parsedUsersObj = [];
+  followers.forEach(f => {
+    parsedUsersObj.push(parseUserObj(f))
+  })
+  insertUsers(parsedUsersObj);
 
   let likers = [];
   yourRecentMedia = yourRecentMedia.slice(0, 2);
@@ -19,7 +28,34 @@ main = async () => {
     );
   }
   likers = new Set(likers);
-  console.log(likers.size);
+
+  return;
+};
+
+const parseUserObj = userObj => {
+
+  return {
+    username: userObj._params.username,
+    user_id: userObj._params.pk,
+    full_name: userObj._params.fullName,
+    is_private: userObj._params.isPrivate,
+    is_follower: true,
+    date_followed: null,
+    date_unfollowed: null,
+    followers: null,
+    following: null,
+    media_count: null,
+    likes_given_to_this: 0,
+    rating: null,
+    created_at: new Date(),
+    has_anonymous_profile_picture: userObj._params.hasAnonymousProfilePicture,
+    profile_pic_id: userObj._params.profilePicId,
+    img_url: userObj._params.picture
+  };
+};
+
+const insertUsers = async parsedUsersObj => {
+  await knex("users").insert(parsedUsersObj);
 };
 
 const getSesh = async () => {
@@ -47,6 +83,13 @@ const getRecentMedia = async (session, userID) => {
     feed.get().then(data => {
       resolve(data);
     });
+  });
+};
+
+const getYourFollowers = async (session, accountID) => {
+  return await new Promise((resolve, reject) => {
+    let feed = new Client.Feed.AccountFollowers(session, accountID);
+    resolve(feed.get());
   });
 };
 
