@@ -13,27 +13,53 @@ main = async () => {
     USER_CREDS.acc1.accountID
   );
 
-  const followers = await getYourFollowers(session, USER_CREDS.acc1.accountID);
-  let parsedUsersObj = [];
-  followers.forEach(f => {
-    parsedUsersObj.push(parseUserObj(f))
-  })
-  insertUsers(parsedUsersObj);
+  let feed = new Client.Feed.AccountFollowers(
+    session,
+    USER_CREDS.acc1.accountID
+  );
 
-  let likers = [];
-  yourRecentMedia = yourRecentMedia.slice(0, 2);
-  for (m of yourRecentMedia) {
-    likers = likers.concat(
-      (await getLikersOfMedia(session, m.id)).map(l => l._params.username)
-    );
+  let parsedUsersObj;
+
+  console.log(feed.isMoreAvailable())
+  const isFirstIteration = !feed.isMoreAvailable();
+  while (feed.isMoreAvailable() == true && isFirstIteration) {
+    parsedUsersObj = [];
+    (await getFollowersBatch(feed)).forEach(f => {
+      parsedUsersObj.push(parseUserObj(f));
+    });
+    console.log('inserting...')
+    insertUsers(parsedUsersObj);
   }
-  likers = new Set(likers);
 
   return;
+
+  // let likers = [];
+  // yourRecentMedia = yourRecentMedia.slice(0, 2);
+  // for (m of yourRecentMedia) {
+  //   likers = likers.concat(
+  //     (await getLikersOfMedia(session, m.id)).map(l => l._params.username)
+  //   );
+  // }
+  // likers = new Set(likers);
+
+  // return;
+};
+
+const getFollowersBatch = async feed => {
+  return await new Promise((resolve, reject) => {
+    feed.get().then(result => {
+      if (feed.isMoreAvailable() == true) {
+        let nextCursor = feed.getCursor();
+        feed.setCursor(nextCursor);
+        resolve(result);
+      } else {
+        resolve(result);
+      }
+    });
+  });
 };
 
 const parseUserObj = userObj => {
-
   return {
     username: userObj._params.username,
     user_id: userObj._params.pk,
@@ -83,13 +109,6 @@ const getRecentMedia = async (session, userID) => {
     feed.get().then(data => {
       resolve(data);
     });
-  });
-};
-
-const getYourFollowers = async (session, accountID) => {
-  return await new Promise((resolve, reject) => {
-    let feed = new Client.Feed.AccountFollowers(session, accountID);
-    resolve(feed.get());
   });
 };
 
