@@ -6,43 +6,40 @@ const Promise = require("bluebird");
 const knex = require("./database");
 
 main = async () => {
-  const qres = await knex.select().from("users");
+  const qres = await knex.select().from("users_dankit");
   const session = await getSesh();
-  let yourRecentMedia = await getRecentMedia(
-    session,
-    USER_CREDS.acc1.accountID
-  );
+  // insertAllFollowers(session, USER_CREDS.acc1.accountID);
+  let recentMedia = await getRecentMedia(session, USER_CREDS.acc1.accountID);
+  let recentMediaIDs = getRecentMediaIDs(recentMedia) 
 
-  let feed = new Client.Feed.AccountFollowers(
-    session,
-    USER_CREDS.acc1.accountID
-  );
-
-  let parsedUsersObj;
-
-  console.log(feed.isMoreAvailable())
-  const isFirstIteration = !feed.isMoreAvailable();
-  while (feed.isMoreAvailable() == true && isFirstIteration) {
-    parsedUsersObj = [];
-    (await getFollowersBatch(feed)).forEach(f => {
-      parsedUsersObj.push(parseUserObj(f));
-    });
-    console.log('inserting...')
-    insertUsers(parsedUsersObj);
-  }
+  let likersOfRecent = await getLikersOfMedias(session, recentMediaIDs.slice(0,3))
 
   return;
+};
 
-  // let likers = [];
-  // yourRecentMedia = yourRecentMedia.slice(0, 2);
-  // for (m of yourRecentMedia) {
-  //   likers = likers.concat(
-  //     (await getLikersOfMedia(session, m.id)).map(l => l._params.username)
-  //   );
-  // }
-  // likers = new Set(likers);
+const getLikersOfMedias = async (session, recentMediaIDs) => {
+  let recentMediaLikers = [];
+  for (mid of recentMediaIDs){
+    let likers = await getLikersOfMedia(session, mid);
+    // console.log(likers)
+    recentMediaLikers.push(likers);
+  }
+  console.log(recentMediaLikers.length)
+  return recentMediaLikers;
+}
 
-  // return;
+const getLikersOfMedia = async (session, mediaID) => {
+  return await new Promise((resolve, reject) => {
+    resolve(Client.Media.likers(session, mediaID));
+  });
+};
+
+const getRecentMediaIDs = recentMedia => {
+  let ids = [];
+  recentMedia.forEach(m => {
+    ids.push(m._params.id);
+  });
+  return ids;
 };
 
 const getFollowersBatch = async feed => {
@@ -57,6 +54,21 @@ const getFollowersBatch = async feed => {
       }
     });
   });
+};
+
+const insertAllFollowers = async (session, accountID) => {
+  let feed = new Client.Feed.AccountFollowers(session, accountID);
+  let parsedUsersObj;
+  let isFirstIteration = !feed.isMoreAvailable();
+  while (feed.isMoreAvailable() == true || isFirstIteration) {
+    isFirstIteration = false;
+    parsedUsersObj = [];
+    (await getFollowersBatch(feed)).forEach(f => {
+      parsedUsersObj.push(parseUserObj(f));
+    });
+    console.log("inserting...");
+    insertUsers(parsedUsersObj);
+  }
 };
 
 const parseUserObj = userObj => {
@@ -81,7 +93,7 @@ const parseUserObj = userObj => {
 };
 
 const insertUsers = async parsedUsersObj => {
-  await knex("users").insert(parsedUsersObj);
+  await knex("users_dankit").insert(parsedUsersObj);
 };
 
 const getSesh = async () => {
@@ -97,12 +109,6 @@ const getSesh = async () => {
   });
 };
 
-const getLikersOfMedia = async (session, mediaID) => {
-  return await new Promise((resolve, reject) => {
-    resolve(Client.Media.likers(session, mediaID));
-  });
-};
-
 const getRecentMedia = async (session, userID) => {
   return await new Promise((resolve, reject) => {
     let feed = new Client.Feed.UserMedia(session, userID);
@@ -113,3 +119,18 @@ const getRecentMedia = async (session, userID) => {
 };
 
 main();
+
+// let yourRecentMedia = await getRecentMedia(
+//   session,
+//   USER_CREDS.acc1.accountID
+// );
+// let likers = [];
+// yourRecentMedia = yourRecentMedia.slice(0, 2);
+// for (m of yourRecentMedia) {
+//   likers = likers.concat(
+//     (await getLikersOfMedia(session, m.id)).map(l => l._params.username)
+//   );
+// }
+// likers = new Set(likers);
+
+// return;
