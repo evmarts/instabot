@@ -6,27 +6,69 @@ const Promise = require("bluebird");
 const knex = require("./database");
 
 main = async () => {
-  const qres = await knex.select().from("users_dankit");
+  // const qres = await knex.select().from("users_dankit");
   const session = await getSesh();
-  // insertAllFollowers(session, USER_CREDS.acc1.accountID);
-  let recentMedia = await getRecentMedia(session, USER_CREDS.acc1.accountID);
-  let recentMediaIDs = getRecentMediaIDs(recentMedia) 
+  insertAllFollowers(session, USER_CREDS.acc1.accountID);
+  // let recentMedia = await getRecentMedia(session, USER_CREDS.acc1.accountID);
+  // let recentMediaIDs = getRecentMediaIDs(recentMedia)
+  // let likersOfRecent = await getLikersOfMedias(session, recentMediaIDs.slice(0,3))
+  // console.log(recentMedia[0])
 
-  let likersOfRecent = await getLikersOfMedias(session, recentMediaIDs.slice(0,3))
+  // const tmp = likerUserLastThreeMedia(session, USER_CREDS.acc2.accountID);
 
+  // likerUserLastKMedia(session, USER_CREDS.acc1.accountID, 3);
+
+  // getUsersMentioned(session, "1878635954195781098_2101832171");
   return;
+};
+
+const getUsersMentioned = async (session, mediaID) => {
+  let feed = new Client.Feed.MediaComments(session, mediaID);
+  let isFirstIteration = true;
+  isFirstIteration = false;
+  let comments = [];
+  comments.push(await new Promise((resolve, reject) => {
+    resolve(feed.all());
+  }));
+  // console.log(comments);
+  let nextCursor = feed.getCursor();
+  console.log(nextCursor);
+  feed.setCursor(nextCursor);
+
+  feed.get().then(comments => {
+    console.log(comments)
+  })
+
+  console.log(comments.length);
+  // feed.all().then(result => {
+  //   let nextCursor = feed.getCursor();
+  //   console.log(nextCursor)
+  //   feed.setCursor(nextCursor);
+  //   console.log(result.length);
+  //   console.log(feed.getCursor())
+  // });
+};
+
+const likerUserLastKMedia = async (session, userID, k) => {
+  let recentMediaIDs = (await getRecentMedia(session, userID))
+    .slice(0, k)
+    .map(m => {
+      return m._params.id;
+    });
+  for (recentMediaID of recentMediaIDs) {
+    Client.Like.create(session, recentMediaID);
+  }
 };
 
 const getLikersOfMedias = async (session, recentMediaIDs) => {
   let recentMediaLikers = [];
-  for (mid of recentMediaIDs){
+  for (mid of recentMediaIDs) {
     let likers = await getLikersOfMedia(session, mid);
-    // console.log(likers)
     recentMediaLikers.push(likers);
   }
-  console.log(recentMediaLikers.length)
+  console.log(recentMediaLikers.length);
   return recentMediaLikers;
-}
+};
 
 const getLikersOfMedia = async (session, mediaID) => {
   return await new Promise((resolve, reject) => {
@@ -48,6 +90,7 @@ const getFollowersBatch = async feed => {
       if (feed.isMoreAvailable() == true) {
         let nextCursor = feed.getCursor();
         feed.setCursor(nextCursor);
+        console.log(nextCursor);
         resolve(result);
       } else {
         resolve(result);
@@ -67,7 +110,7 @@ const insertAllFollowers = async (session, accountID) => {
       parsedUsersObj.push(parseUserObj(f));
     });
     console.log("inserting...");
-    insertUsers(parsedUsersObj);
+    // insertUsers(parsedUsersObj);
   }
 };
 
