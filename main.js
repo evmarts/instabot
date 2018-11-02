@@ -5,6 +5,11 @@ var storage = new Client.CookieFileStorage(__dirname + "/cookies/cookies.json");
 const Promise = require("bluebird");
 const knex = require("./database");
 
+
+// strategies
+// follower users who liked a competitors page
+// 
+
 main = async () => {
   // const qres = await knex.select().from("users_dankit");
   const session = await getSesh();
@@ -21,6 +26,17 @@ main = async () => {
   // getUsersMentioned(session, "1878635954195781098_2101832171");
   return;
 };
+
+
+
+// main2 = async () => {
+//   console.log('hey')
+//   setTimeout(main2, 1000)
+// }
+
+// main3 = async () => {
+//   console.log('hey2');
+// }
 
 const getUsersMentioned = async (session, mediaID) => {
   let feed = new Client.Feed.MediaComments(session, mediaID);
@@ -160,6 +176,8 @@ const getRecentMedia = async (session, userID) => {
     });
   });
 };
+
+main2()
 
 main();
 
