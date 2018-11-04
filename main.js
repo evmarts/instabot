@@ -133,6 +133,7 @@ const getFollowingsOfUser = async (session, userId) => {
   return parsedUsersObj;
 };
 
+// parses the user response from API into an object that can be inserted into db
 const parseUserObj = userObj => {
   return {
     username: userObj._params.username,
@@ -154,6 +155,7 @@ const parseUserObj = userObj => {
   };
 };
 
+// inserts a list of user objects into the db
 const insertUsers = async parsedUsersObj => {
   await knex("users_dankit").insert(parsedUsersObj);
 };
