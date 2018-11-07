@@ -6,8 +6,18 @@ const knex = require("./database");
 const fs = require("fs");
 
 main = async () => {
-  var device = new Client.Device(USER_CREDS.acc1.username);
-  const session = await getSesh(USER_CREDS.acc1, device);
+  var device = new Client.Device(USER_CREDS.acc3.username);
+  const session = await getSesh(USER_CREDS.acc3, device);
+
+  const recentMedia = await getRecentMedia(session, USER_CREDS.acc1.accountID);
+  const recentMediaIds = getMediaIDs(recentMedia).slice(0,1);
+
+  console.log(recentMediaIds);
+
+  recentMediaIds.forEach(async mId => {
+    let mentioned = await getUsersMentioned(session, mId)
+    
+  })
 };
 
 // gets a user object by a user id
@@ -39,7 +49,9 @@ const getUsersMentioned = async (session, mediaID) => {
   let nextCursor = feed.getCursor();
   feed.setCursor(nextCursor);
 
-  feed.get().then(comments => {});
+  feed.get().then(comments => {
+    console.log(comments);
+  });
 
   // feed.all().then(result => {
   //   let nextCursor = feed.getCursor();
@@ -88,7 +100,7 @@ const getMediaIDs = recentMedia => {
   return ids;
 };
 
-// gets followers given a AccountFollowers feed
+// gets followers of an account given a AccountFollowers feed
 const getFollowersBatch = async feed => {
   return await new Promise((resolve, reject) => {
     feed.get().then(result => {
