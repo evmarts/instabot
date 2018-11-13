@@ -1,29 +1,86 @@
-const { USER_CREDS } = require("./hidden/hidden.js");
+const {
+  USER_CREDS
+} = require("./hidden/hidden.js");
 var Client = require("instagram-private-api").V1;
 var storage = new Client.CookieFileStorage(__dirname + "/cookies/cookies.json");
 const Promise = require("bluebird");
 const knex = require("./database");
 const fs = require("fs");
+const _ = require('lodash');
+
+const insertMentionedUsers = async (device, session) => {
+  const recentMedia = await getRecentMedia(session, USER_CREDS.acc1.accountID);
+  const recentMediaIds = getMediaIDs(recentMedia);
+
+  let mentioned = []
+  let commentors = []
+  for (recentMediaId of recentMediaIds) {
+    mentioned = mentioned.concat(await getUsersMentioned(session, recentMediaId))
+    commentors = commentors.concat(await getMediaCommenters(session, recentMediaId));
+  }
+  mentioned = _.uniq(mentioned);
+  let users = []
+  for (userName of mentioned) {
+    let userObject = await search_user(session, userName)
+    if (typeof userObject !== 'undefined') {
+      users.push(parseUserObj(userObject));
+    }
+  }
+  insertUsers(users, "dnk_users_to_follow_via_comment_mention");
+}
+
+const insertLikersOfCompetitorsMedia = async (device, session) => {
+  const competitors = ['oldrowofficial', 'totalfratmove'];
+  const competitorsIds = []
+  for (c of competitors){
+    competitorsIds.push(await getUserIdFromUsername(session,c))
+  }
+
+  let likers = [];
+  for (cid of competitorsIds){
+    let recentMediaIds = (await getRecentMedia(session, cid)).map(m => m.id).slice(0,1)
+    for (mid of recentMediaIds){
+      console.log(mid)
+      likers = likers.concat(await getLikersOfMedia(session, mid))
+    }
+  }
+
+  const parsedUsersObj = likers.map(l => parseUserObj(l));
+  insertUsers(parsedUsersObj, "dnk_users_to_follow_from_competitors_likers")
+}
 
 main = async () => {
   var device = new Client.Device(USER_CREDS.acc3.username);
   const session = await getSesh(USER_CREDS.acc3, device);
 
-  const recentMedia = await getRecentMedia(session, USER_CREDS.acc1.accountID);
-  const recentMediaIds = getMediaIDs(recentMedia).slice(0,1);
-
-  console.log(recentMediaIds);
-
-  recentMediaIds.forEach(async mId => {
-    let mentioned = await getUsersMentioned(session, mId)
-    
-  })
+  insertLikersOfCompetitorsMedia(device, session);
+  // insertMentionedUsers(device, session);
 };
 
 // gets a user object by a user id
 const getUserById = (session, userId) => {
   return Client.Account.getById(session, userId);
 };
+
+async function search_user(session, username) {
+  return Client.Account.searchForUser(session, username).then(account => {
+    return account;
+  }).catch(err => console.error(err.message));
+}
+
+async function getUserIdFromUsername(session, username) {
+  return Client.Account.searchForUser(session, username).then(account => {
+    return account.id;
+  }).catch(err => console.error(err.message));
+}
+
+// const getUserByName = async (session, userName) => {
+//   Client.Account.searchForUser(session, userName).then(result => {
+//     return result
+//   }).catch(err => {
+//     console.log(err)
+//   })
+// }
 
 // writes an array to a text file
 const writeArrayToDisc = (array, path) => {
@@ -35,31 +92,49 @@ const readFileToString = path => {
   return fs.readFileSync(path, "utf-8");
 };
 
+const extractUserNames = (string) => {
+  const matches = []
+  for (s of string.split()) {
+    const re = /(?:@)([A-Za-z0-9_](?:(?:[A-Za-z0-9_]|(?:\.(?!\.))){0,28}(?:[A-Za-z0-9_]))?)/
+    if (s.match(re)) {
+      matches.push(s.match(re)[1])
+    }
+  }
+  return matches;
+}
+
+const followUser = async (session, userId) => {
+  return Client.Relationship.create(session, userId)
+}
+
+const getMediaCommenters = async (session, mediaId) => {
+  let feed = new Client.Feed.MediaComments(session, mediaId);
+  let comments = (
+    await new Promise((resolve, reject) => {
+      resolve(feed.get());
+    })
+  );
+  let users = [];
+  for (c of comments) {
+    users = users.concat(c.id);
+  }
+  return users;
+}
+
+// TODO
 // gets the users mentioned in the comments of a media
 const getUsersMentioned = async (session, mediaID) => {
   let feed = new Client.Feed.MediaComments(session, mediaID);
-  let isFirstIteration = true;
-  isFirstIteration = false;
-  let comments = [];
-  comments.push(
+  let comments = (
     await new Promise((resolve, reject) => {
-      resolve(feed.all());
+      resolve(feed.get());
     })
   );
-  let nextCursor = feed.getCursor();
-  feed.setCursor(nextCursor);
-
-  feed.get().then(comments => {
-    console.log(comments);
-  });
-
-  // feed.all().then(result => {
-  //   let nextCursor = feed.getCursor();
-  //   console.log(nextCursor)
-  //   feed.setCursor(nextCursor);
-  //   console.log(result.length);
-  //   console.log(feed.getCursor())
-  // });
+  let mentioned = [];
+  for (c of comments) {
+    mentioned = mentioned.concat(extractUserNames(c._params.text));
+  }
+  return mentioned;
 };
 
 // gives likes to the last K medias of a user
@@ -147,29 +222,36 @@ const getFollowingsOfUser = async (session, userId) => {
 
 // parses the user response from API into an object that can be inserted into db
 const parseUserObj = userObj => {
-  return {
-    username: userObj._params.username,
-    user_id: userObj._params.pk,
-    full_name: userObj._params.fullName,
-    is_private: userObj._params.isPrivate,
-    is_follower: true,
-    date_followed: null,
-    date_unfollowed: null,
-    followers: null,
-    following: null,
-    media_count: null,
-    likes_given_to_this: 0,
-    rating: null,
-    created_at: new Date(),
-    has_anonymous_profile_picture: userObj._params.hasAnonymousProfilePicture,
-    profile_pic_id: userObj._params.profilePicId,
-    img_url: userObj._params.picture
-  };
+  if (userObj) {
+    return {
+      username: userObj._params.username,
+      user_id: userObj._params.pk,
+      full_name: userObj._params.fullName,
+      is_private: userObj._params.isPrivate,
+      is_follower: true,
+      date_followed: null,
+      date_unfollowed: null,
+      followers: null,
+      following: null,
+      media_count: null,
+      likes_given_to_this: 0,
+      rating: null,
+      created_at: new Date(),
+      has_anonymous_profile_picture: userObj._params.hasAnonymousProfilePicture,
+      profile_pic_id: userObj._params.profilePicId ? userObj._params.profilePicId : null,
+      img_url: userObj._params.picture
+    };
+  }
 };
 
 // inserts a list of user objects into the db
-const insertUsers = async parsedUsersObj => {
-  await knex("users_dankit").insert(parsedUsersObj);
+const insertUsers = async (parsedUsersObj, tableName) => {
+  console.log(parsedUsersObj.length);
+  const BATCHSIZE = 200;
+  for (let i = 0; i < parsedUsersObj.length; i = i + BATCHSIZE){
+    console.log(i, i+BATCHSIZE);
+    await knex(tableName).insert(parsedUsersObj.slice(i,i + BATCHSIZE));
+  }
 };
 
 const getSesh = async (acc, device) => {
