@@ -13,10 +13,8 @@ const insertMentionedUsers = async (device, session) => {
   const recentMediaIds = getMediaIDs(recentMedia);
 
   let mentioned = []
-  let commentors = []
   for (recentMediaId of recentMediaIds) {
     mentioned = mentioned.concat(await getUsersMentioned(session, recentMediaId))
-    commentors = commentors.concat(await getMediaCommenters(session, recentMediaId));
   }
   mentioned = _.uniq(mentioned);
   let users = []
@@ -29,18 +27,44 @@ const insertMentionedUsers = async (device, session) => {
   insertUsers(users, "dnk_users_to_follow_via_comment_mention");
 }
 
+const insertCommentersOfCompetitorMedia = async (device, session) => {
+  const competitors = ['oldrowofficial'];
+  const competitorsIds = [];
+  for (c of competitors) {
+    competitorsIds.push(await getUserIdFromUsername(session, c))
+  }
+
+  let commentors = [];
+  for (cid of competitorsIds) {
+    let recentMediaIds = (await getRecentMedia(session, cid)).map(m => m.id).slice(0,4)
+    for (mid of recentMediaIds) {
+      console.log(mid);
+      let commentorsOfMedia = await getMediaCommenters(session, mid)
+      commentors = commentors.concat(commentorsOfMedia.map(m => m._params.userId));
+    }
+  }
+
+  let commentorObjs = [];
+  console.log('here');
+  for (commentor of commentors) {
+    commentorObjs.push(await getUserById(session, commentor));
+  }
+
+  const parsedUsersObj = commentorObjs.map(c => parseUserObj(c));
+  insertUsers(parsedUsersObj, "dnk_users_to_follow_from_competitors_commentors")
+}
+
 const insertLikersOfCompetitorsMedia = async (device, session) => {
   const competitors = ['oldrowofficial', 'totalfratmove'];
   const competitorsIds = []
-  for (c of competitors){
-    competitorsIds.push(await getUserIdFromUsername(session,c))
+  for (c of competitors) {
+    competitorsIds.push(await getUserIdFromUsername(session, c))
   }
 
   let likers = [];
-  for (cid of competitorsIds){
-    let recentMediaIds = (await getRecentMedia(session, cid)).map(m => m.id).slice(0,1)
-    for (mid of recentMediaIds){
-      console.log(mid)
+  for (cid of competitorsIds) {
+    let recentMediaIds = (await getRecentMedia(session, cid)).map(m => m.id).slice(0, 1)
+    for (mid of recentMediaIds) {
       likers = likers.concat(await getLikersOfMedia(session, mid))
     }
   }
@@ -53,14 +77,17 @@ main = async () => {
   var device = new Client.Device(USER_CREDS.acc3.username);
   const session = await getSesh(USER_CREDS.acc3, device);
 
-  insertLikersOfCompetitorsMedia(device, session);
+  insertCommentersOfCompetitorMedia(device, session);
+  // insertLikersOfCompetitorsMedia(device, session);
   // insertMentionedUsers(device, session);
 };
 
 // gets a user object by a user id
-const getUserById = (session, userId) => {
-  return Client.Account.getById(session, userId);
-};
+async function getUserById(session, username) {
+  return Client.Account.getById(session, username).then(account => {
+    return account;
+  }).catch(err => console.error(err.message));
+}
 
 async function search_user(session, username) {
   return Client.Account.searchForUser(session, username).then(account => {
@@ -73,14 +100,6 @@ async function getUserIdFromUsername(session, username) {
     return account.id;
   }).catch(err => console.error(err.message));
 }
-
-// const getUserByName = async (session, userName) => {
-//   Client.Account.searchForUser(session, userName).then(result => {
-//     return result
-//   }).catch(err => {
-//     console.log(err)
-//   })
-// }
 
 // writes an array to a text file
 const writeArrayToDisc = (array, path) => {
@@ -111,12 +130,12 @@ const getMediaCommenters = async (session, mediaId) => {
   let feed = new Client.Feed.MediaComments(session, mediaId);
   let comments = (
     await new Promise((resolve, reject) => {
-      resolve(feed.get());
+      resolve(feed.all());
     })
   );
   let users = [];
   for (c of comments) {
-    users = users.concat(c.id);
+    users = users.concat(c);
   }
   return users;
 }
@@ -246,11 +265,9 @@ const parseUserObj = userObj => {
 
 // inserts a list of user objects into the db
 const insertUsers = async (parsedUsersObj, tableName) => {
-  console.log(parsedUsersObj.length);
   const BATCHSIZE = 200;
-  for (let i = 0; i < parsedUsersObj.length; i = i + BATCHSIZE){
-    console.log(i, i+BATCHSIZE);
-    await knex(tableName).insert(parsedUsersObj.slice(i,i + BATCHSIZE));
+  for (let i = 0; i < parsedUsersObj.length; i = i + BATCHSIZE) {
+    await knex(tableName).insert(parsedUsersObj.slice(i, i + BATCHSIZE));
   }
 };
 
