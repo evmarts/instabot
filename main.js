@@ -126,6 +126,13 @@ const extractUserNames = string => {
   return matches;
 };
 
+const followUsers = async (session, userIds) => {
+  for (u of userIds){
+    await followUser(session, u)
+    console.log('followed', u)
+  }
+}
+
 const followUser = async (session, userId) => {
   return Client.Relationship.create(session, userId);
 };
