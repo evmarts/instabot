@@ -37,7 +37,7 @@ const insertCommentersOfCompetitorMedia = async (device, session) => {
   let commenters = [];
   for (cid of competitorsIds) {
     let recentMediaIds = (await getRecentMedia(session, cid)).map(m => m.id);
-    for (mid of recentMediaIds.slice(0,2)) {
+    for (mid of recentMediaIds.slice(0, 2)) {
       let commentersOfMedia = await getMediaCommenters(session, mid);
       commenters = commenters.concat(
         commentersOfMedia.map(m => m._params.userId)
@@ -47,7 +47,10 @@ const insertCommentersOfCompetitorMedia = async (device, session) => {
   }
 
   const parsedUsersObj = commenters.map(c => parseUserObj(c));
-  insertUsers(parsedUsersObj, "dnk_users_to_follow_from_competitors_commentors")
+  insertUsers(
+    parsedUsersObj,
+    "dnk_users_to_follow_from_competitors_commentors"
+  );
 };
 
 const insertLikersOfCompetitorsMedia = async (device, session) => {
@@ -75,9 +78,29 @@ main = async () => {
   var device = new Client.Device(USER_CREDS.acc3.username);
   const session = await getSesh(USER_CREDS.acc3, device);
 
-  insertCommentersOfCompetitorMedia(device, session);
+  const competitors = ["oldrowofficial", "totalfratmove"];
+  // insertCommentersOfCompetitorMedia(device, session);
   // insertLikersOfCompetitorsMedia(device, session);
   // insertMentionedUsers(device, session);
+
+  const competitorsIds = [];
+  for (c of competitors) {
+    competitorsIds.push(await getUserIdFromUsername(session, c));
+  }
+
+  let likers = [];
+  for (cid of competitorsIds) {
+    let recentMediaIds = (await getRecentMedia(session, cid))
+      .map(m => m.id)
+      .slice(0, 1);
+    for (mid of recentMediaIds) {
+      likers = likers.concat(await getLikersOfMedia(session, mid));
+    }
+  }
+  // console.log(likers);
+
+  const likerIds = likers.map(l => l.id);
+  followUsers(session, likerIds);
 };
 
 // gets a user object by a user id
@@ -127,11 +150,20 @@ const extractUserNames = string => {
 };
 
 const followUsers = async (session, userIds) => {
-  for (u of userIds){
-    await followUser(session, u)
-    console.log('followed', u)
+  for (u of userIds) {
+    await followUser(session, u);
+    console.log("followed", u);
+
+    let time = 1;
+    var interval = setInterval(() => {
+      if (time <= 3) {
+        time++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 5000);
   }
-}
+};
 
 const followUser = async (session, userId) => {
   return Client.Relationship.create(session, userId);
