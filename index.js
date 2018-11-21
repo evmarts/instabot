@@ -7,55 +7,58 @@ const Promise = require("bluebird");
 const knex = require("./database");
 const fs = require("fs");
 const _ = require("lodash");
+import {login} from './account'
+
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-///////////////////////////   M  A  I   N   ////////////////////////////////////
+///////////////////////////    M  A  I  N   ////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
 main = async () => {
-  var device = new Client.Device(USER_CREDS.acc1.username);
-  const session = await getSesh(USER_CREDS.acc1, device);
+  // login("dank.it", "pw")
+  // var device = new Client.Device(USER_CREDS.acc1.username);
+  // const session = await getSesh(USER_CREDS.acc1, device);
 
-  // const competitors = ["oldrowofficial", "totalfratmove"];
-  const competitors = [
-    "420.nation",
-    "cannabisbae",
-    "weed.humor.daily",
-    "stonertopia",
-  ]
-  // insertCommentersOfCompetitorMedia(device, session);
-  // insertLikersOfCompetitorsMedia(device, session);
-  // insertMentionedUsers(device, session);
+  // // const competitors = ["oldrowofficial", "totalfratmove"];
+  // const competitors = [
+  //   "420.nation",
+  //   "cannabisbae",
+  //   "weed.humor.daily",
+  //   "stonertopia",
+  // ]
+  // // insertCommentersOfCompetitorMedia(device, session);
+  // // insertLikersOfCompetitorsMedia(device, session);
+  // // insertMentionedUsers(device, session);
 
-  // let competitorsIds = [];
-  let competitorsIds = [ 1395733100, 2243201223, 3229518635, 1497062198 ]
-  // for (c of competitors) {
-  //   competitorsIds.push(await getUserIdFromUsername(session, c));
+  // // let competitorsIds = [];
+  // let competitorsIds = [ 1395733100, 2243201223, 3229518635, 1497062198 ]
+  // // for (c of competitors) {
+  // //   competitorsIds.push(await getUserIdFromUsername(session, c));
+  // // }
+  // // competitorsIds = competitorsIds.map(c => parseUserObj(c))
+  // // insertUsers(competitorsIds, "dnk_competitors")
+
+  // let likers = [];
+  // for (cid of competitorsIds) {
+  //   let recentMediaIds = (await getRecentMedia(session, cid))
+  //     .map(m => m.id)
+  //     .slice(0, 1);
+  //   for (mid of recentMediaIds.slice(0,1)) {
+  //     likers = likers.concat(await getLikersOfMedia(session, mid));
+  //   }
   // }
-  // competitorsIds = competitorsIds.map(c => parseUserObj(c))
-  // insertUsers(competitorsIds, "dnk_competitors")
 
-  let likers = [];
-  for (cid of competitorsIds) {
-    let recentMediaIds = (await getRecentMedia(session, cid))
-      .map(m => m.id)
-      .slice(0, 1);
-    for (mid of recentMediaIds.slice(0,1)) {
-      likers = likers.concat(await getLikersOfMedia(session, mid));
-    }
-  }
-
-  let mentionedUsers = await getUsersFromDB("dnk_users_to_follow_via_comment_mention")
-  console.log(mentionedUsers)
-  const mentionedIds = mentionedUsers.map(mu => mu.user_id);
-  followUsers(0,session, mentionedIds);
-  console.log('mids', mentionedIds)
-  // const likerIds = likers.map(l => l.id);
-  // followUsers(0,session, likerIds);
+  // let mentionedUsers = await getUsersFromDB("dnk_users_to_follow_via_comment_mention")
+  // console.log(mentionedUsers)
+  // const mentionedIds = mentionedUsers.map(mu => mu.user_id);
+  // followUsers(0,session, mentionedIds);
+  // console.log('mids', mentionedIds)
+  // // const likerIds = likers.map(l => l.id);
+  // // followUsers(0,session, likerIds);
 };
 
 
