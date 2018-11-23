@@ -18,8 +18,11 @@ import {login} from './account'
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+
+/// TODO this project should focus on finding a list of users to follow, not actually sending
+// the api requests to follow them
 main = async () => {
-  // login("dank.it", "pw")
+  // login("acc", "pw")
   // var device = new Client.Device(USER_CREDS.acc1.username);
   // const session = await getSesh(USER_CREDS.acc1, device);
 
