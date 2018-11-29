@@ -65,7 +65,6 @@ main = async () => {
   // // followUsers(0,session, likerIds);
 };
 
-
 function followUsers(counter, session, userIds){
   let timeout = Math.floor((Math.random() * 10) + 1)*1000;
   console.log(timeout);
